@@ -1,0 +1,174 @@
+--CREATE HACKERS TABLE
+
+create table hackers (hacker_id int,
+					 name varchar)
+					 
+insert into hackers (hacker_id, name)
+values (15758, 'Rose'), (20703, 'Angela'), (36396, 'Frank'), (38289, 'Patrick'), (44065, 'Lisa'), (53473, 'Kimberly'),
+(62529, 'Bonnie'), (79722, 'Michael')
+
+select * from hackers
+
+
+--CREATE SUBMISSIONS TABLE
+
+create table submissions (submission_date date,
+	submission_id int,
+	hacker_id int,
+	score int)
+	
+	
+insert into submissions (submission_date, submission_id, hacker_id, score)
+values ('2016-03-01', 8494, 20703, 0), 
+('2016-03-01', 22403, 53473, 15), 
+('2016-03-01', 23965, 79722, 60), 
+('2016-03-01', 30173, 36396, 70), 
+('2016-03-02', 34928, 20703, 0), 
+('2016-03-02', 38740, 15758, 60),
+('2016-03-02', 42769, 79722, 25), 
+('2016-03-02', 44364, 79722, 60),
+('2016-03-03', 45440, 20703, 0),
+('2016-03-03', 49050, 36396, 70),
+('2016-03-03', 50273, 79722, 5),
+('2016-03-04', 50344, 20703, 0),
+('2016-03-04', 51360, 44065, 90),
+('2016-03-04', 54404, 53473, 65),
+('2016-03-04', 61533, 79722, 45),
+('2016-03-05', 72852, 20703, 0),
+('2016-03-05', 74546, 38289, 0),
+('2016-03-05', 76487, 62529, 0),
+('2016-03-05', 82439, 36396, 10),
+('2016-03-05', 90006, 36396, 40),
+('2016-03-06', 90404, 20703, 0)
+
+
+select * from submissions
+
+
+/* Write a query to print total number of unique hackers who made at least  submission each day, 
+and find the hacker_id and name of the hacker who made maximum number of submissions each day. 
+If more than one such hacker has a maximum number of submissions, print the lowest hacker_id. 
+The query should print this information for each day of the contest, sorted by the date. */
+
+
+with cte as (
+Select submission_date, count(hacker_id) as total_hackers 
+from (
+Select distinct submission_Date, hacker_id,
+dense_rank() over(order by submission_Date) as date_order, 
+dense_rank() over(partition by hacker_id order by submission_Date) as hacker_id_order
+from submissions
+order by 1
+) as temp
+where hacker_id_order = date_order
+group by submission_date
+)
+
+, cte2 as (
+select cnt_dataset.submission_date, cnt_dataset.hacker_id, h.name
+from (
+Select submission_date, 
+hacker_id,
+count(submission_id) as submission_cnt,
+dense_rank() over(partition by submission_date order by submission_date, count(submission_id) desc, hacker_id asc) as count_order
+from submissions
+group by submission_date, hacker_id) as cnt_dataset
+inner join hackers h 
+on cnt_dataset.hacker_id = h.hacker_id
+where cnt_dataset.count_order = 1
+)
+
+select cte.*, cte2.hacker_id, cte2.name
+from cte
+inner join cte2 on cte.submission_date = cte2.submission_date
+order by 1
+
+
+
+--CREATE TABLE CONTEST TABLE
+
+create table contest (contest_id int,
+					 hacker_id int,
+					 name varchar)
+					 
+insert into contest (contest_id, hacker_id, name)
+values (66406, 17973, 'Rose'), (66556, 79153, 'Angela'), (94828, 80275, 'Frank')
+					
+select * from contest
+
+
+--CREATE TABLE COLLEGE
+
+create table college (college_id int,
+					 contest_id int)
+					 
+insert into college (college_id, contest_id)
+values (11219, 66406), (32473, 66556), (56685, 94828)
+
+select * from college
+
+
+--CREATE TABLE CHALLENGES TABLE
+
+create table challenge (challenge_id int,
+					 college_id int)
+					 
+insert into challenge (challenge_id, college_id)
+values (18765, 11219), (47127, 11219), (60292, 32473), (72974, 56685)
+
+select * from challenge
+
+
+--CREATE TABLE VIEW_STATS
+
+create table view_stats (challenge_id int,
+					 	total_views int,
+						total_unique_views int)
+					 
+insert into view_stats (challenge_id, total_views, total_unique_views)
+values (47127, 26, 19), (47127, 15, 14), (18765, 43, 10), (18765, 72, 13), (75516, 35, 17), (60292, 11, 10),
+(72974, 41, 15), (75516, 75, 11)
+
+select * from view_stats
+
+
+--CREATE TABLE SUBMISSION_STATS
+
+create table submission_stats (challenge_id int,
+					 		  total_submissions int,
+							  total_accepted_submissions int)
+					 
+insert into submission_stats (challenge_id, total_submissions, total_accepted_submissions)
+values (75516, 34, 12), (47127, 27, 10), (47127, 56, 18), (75516, 74, 12), (75516, 83, 8), 
+(72974, 68, 24), (72974, 82, 14), (47127, 28, 11)
+
+select * from submission_stats
+
+
+/* Write a query to print the contest_id, hacker_id, name, and the sums of total_submissions, 
+total_accepted_submissions, total_views, and total_unique_views for each contest sorted by contest_id.
+Exclude the contest from the result if all four sums are 0. */
+
+with cte as (
+select a.contest_id, a.hacker_id, a.name, sum(d.total_submissions) as tot_sub, sum(d.total_accepted_submissions) as tot_acc_sub
+from contest as a
+left join college as b on a.contest_id = b.contest_id
+left join challenge as c on c.college_id = b.college_id
+left join submission_stats as d on d.challenge_id = c.challenge_id
+group by 1,2,3
+)
+
+, df as (
+select a.contest_id, a.hacker_id, a.name, sum(d.total_views) as tot_view, sum(d.total_unique_views) as tot_uni_views
+from contest as a
+left join college as b on a.contest_id = b.contest_id
+left join challenge as c on c.college_id = b.college_id
+left join view_stats as d on d.challenge_id = c.challenge_id
+group by 1,2,3
+)
+
+select x.contest_id, x.hacker_id, x.name, x.tot_sub, x.tot_acc_sub, y.tot_view, y.tot_uni_views
+from cte as x
+inner join df as y on x.contest_id = y.contest_id
+where x.tot_sub > 0 and x.tot_acc_sub > 0 and y.tot_view > 0 and y.tot_uni_views > 0
+order by 1
